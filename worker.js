@@ -1,17 +1,14 @@
 // Cloudflare Worker para Gölge: genera frases A2 de turco con Workers AI (plan gratuito).
-// Requiere un binding de Workers AI llamado "AI" (Settings → Bindings → Add → Workers AI).
+// Requiere un binding de Workers AI llamado "AI".
 const ALLOWED = ["https://spanishgrows.github.io", "http://localhost:8766"];
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-
-const SCHEMA = {
-  type: "object",
-  properties: {
-    title: { type: "string" },
-    title_es: { type: "string" },
-    sentences: { type: "array", items: { type: "array", items: { type: "string" } } }
-  },
-  required: ["title", "title_es", "sentences"]
+const MODELS = {
+  llama: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  gemma: "@cf/google/gemma-3-12b-it",
+  qwen: "@cf/qwen/qwen3-30b-a3b-fp8",
+  scout: "@cf/meta/llama-4-scout-17b-16e-instruct",
+  mistral: "@cf/mistralai/mistral-small-3.1-24b-instruct"
 };
+const DEFAULT = "llama";
 
 function cors(origin) {
   return {
@@ -24,6 +21,36 @@ function cors(origin) {
 const json = (data, status, origin) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", ...cors(origin) } });
 
+const SYSTEM =
+  "You are a native Turkish speaker and an expert teacher of Turkish as a foreign language (CEFR A2). " +
+  "You write only grammatically perfect, natural, idiomatic Turkish that a native speaker would really say, with correct spelling " +
+  "and all special letters (ç ğ ı İ ö ş ü). You translate into natural Latin American Spanish. You answer only with JSON.";
+
+function userPrompt(topic) {
+  return `Topic: "${topic}".\n` +
+    "Write 8 useful sentences that a foreign resident in Turkey would really say or hear in this situation.\n" +
+    "Rules:\n" +
+    "- CEFR A2: everyday vocabulary; present continuous (-iyor), aorist, past (-di), future (-ecek), can (-ebil), imperative/polite requests (-ebilir misiniz), questions with mi.\n" +
+    "- Complete sentences of 5 to 10 words, mostly first person (ben/biz) and dialogue lines (questions and answers).\n" +
+    "- Avoid the passive voice and rare words. No numbering.\n" +
+    "- Translate each sentence into natural Latin American Spanish.\n" +
+    "- Give a short Turkish title (1-3 words) and its Spanish translation.\n" +
+    'Example for the topic "en la panadería": {"title":"Fırında","title_es":"En la panadería","sentences":[' +
+    '["İki ekmek alabilir miyim, lütfen?","¿Me da dos panes, por favor?"],' +
+    '["Simitler taze mi?","¿Los simits están frescos?"],' +
+    '["Evet, bu sabah pişirdik.","Sí, los horneamos esta mañana."]]}\n' +
+    "Reply ONLY with the JSON object, with exactly 8 sentences.";
+}
+
+function extract(out) {
+  let data = out && (out.response ?? out.result?.response ?? out.choices?.[0]?.message?.content ?? out);
+  if (typeof data === "string") {
+    data = data.replace(/<think>[\s\S]*?<\/think>/g, "");
+    data = JSON.parse(data.match(/\{[\s\S]*\}/)[0]);
+  }
+  return data;
+}
+
 export default {
   async fetch(req, env) {
     const origin = req.headers.get("Origin") || "";
@@ -31,29 +58,18 @@ export default {
     if (req.method !== "POST") return json({ error: "Usa POST" }, 405, origin);
     if (!ALLOWED.includes(origin)) return json({ error: "Origen no permitido" }, 403, origin);
 
-    let topic = "";
-    try { topic = String((await req.json()).topic || "").trim().slice(0, 80); } catch (e) {}
+    let body = {};
+    try { body = await req.json(); } catch (e) {}
+    const topic = String(body.topic || "").trim().slice(0, 80);
     if (!topic) return json({ error: "Falta el tema" }, 400, origin);
-
-    const messages = [
-      { role: "system", content:
-        "You are an expert teacher of Turkish as a foreign language. You write perfectly correct, natural Turkish " +
-        "with all special letters (ç ğ ı İ ö ş ü) and natural Latin American Spanish translations. You answer only with JSON." },
-      { role: "user", content:
-        `Create 8 natural, everyday Turkish sentences at CEFR A2 level about this topic: "${topic}". ` +
-        "Use simple A2 grammar (present continuous, aorist, past -di, future -ecek, -ebil, imperative, yes/no questions with mi). " +
-        "4 to 10 words per sentence. Useful for real life in Turkey, varied (questions and answers). " +
-        "Translate each sentence into natural Latin American Spanish. Also give a short Turkish title (1-3 words) and its Spanish translation. " +
-        'Format: {"title":"...","title_es":"...","sentences":[["turkish sentence","spanish translation"], ...]}' }
-    ];
+    const model = MODELS[body.model] || MODELS[DEFAULT];
 
     try {
-      const out = await env.AI.run(MODEL, {
-        messages, max_tokens: 1200, temperature: 0.6,
-        response_format: { type: "json_schema", json_schema: SCHEMA }
+      const out = await env.AI.run(model, {
+        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt(topic) }],
+        max_tokens: 1500, temperature: 0.4
       });
-      let data = out.response;
-      if (typeof data === "string") data = JSON.parse(data.match(/\{[\s\S]*\}/)[0]);
+      const data = extract(out);
       const sentences = (data.sentences || [])
         .filter(s => Array.isArray(s) && s[0])
         .map(([tr, es]) => [String(tr).trim(), String(es || "").trim()])

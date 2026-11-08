@@ -609,7 +609,7 @@ $("pause").value = S.pause; $("pause").onchange = e => { S.pause = e.target.valu
 });
 
 // ---------- mis textos: generar frases con IA (Cloudflare Workers AI, ver worker.js) ----------
-const GEN_URL = ""; // URL del Worker de Cloudflare, p. ej. https://golge-ia.<cuenta>.workers.dev
+const GEN_URL = "https://golge-ia.spanishgrows.workers.dev/";
 function renderMyTopics(){
   const box = $("myTopics"), list = myTopics();
   box.innerHTML = list.length ? "" : `<p class="help" style="margin:10px 0 0">Todavía no has generado ningún tema.</p>`;
