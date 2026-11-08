@@ -1,4 +1,4 @@
-# Gölge · Turco shadowing (A2)
+# Gölge · Turco shadowing (A1–C1)
 
 App web para practicar turco con la técnica de *shadowing*: escuchar, hablar a la vez que la voz, repetir, grabarse y comparar.
 
@@ -14,7 +14,8 @@ App web para practicar turco con la técnica de *shadowing*: escuchar, hablar a 
 - Voz turca con IA (Piper, neuronal y gratuita, funciona dentro del dispositivo; se descarga una vez, ~63 MB) o la voz del sistema.
 - Shadowing con grabación; con auriculares, puntuación palabra por palabra (Chrome, Edge, Safari).
 - Modo manos libres, shadowing a ciegas y racha diaria.
-- **Mis textos:** escribe un tema y la IA genera 8 frases A2 con traducción (servidor: `worker.js` en Cloudflare Workers AI).
+- **Nivel A1–C1** en la cabecera.
+- **Mis textos:** escribe un tema y la IA genera 8 frases del nivel elegido con traducción (servidor: `worker.js` en Cloudflare Workers AI).
 - **Copia de seguridad:** el progreso se guarda en el dispositivo; con «Copiar código» / «Restaurar» se pasa a otro móvil.
 
 Consejo: usa auriculares para el shadowing.

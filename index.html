@@ -37,6 +37,7 @@ body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 h1{font-size:22px;margin:0;letter-spacing:-.01em}
 h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
+.lvl{width:auto;display:inline-block;vertical-align:baseline;font:inherit;font-weight:700;color:var(--accent);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1px 4px;margin:0 2px;cursor:pointer}
 .stats{display:flex;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap;justify-content:flex-end}
 .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
 .topics{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -100,7 +101,7 @@ audio{display:none}
 <body>
 <div class="wrap">
   <header>
-    <h1>Gölge <small>Turco A2 · shadowing</small></h1>
+    <h1>Gölge <small>Turco <select id="level" class="lvl" aria-label="Nivel"><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option></select> · shadowing</small></h1>
     <div class="stats">
       <span class="pill" id="streak">🔥 0 días</span>
       <span class="pill" id="today">Hoy: 0</span>
@@ -151,7 +152,7 @@ audio{display:none}
 
   <section class="panel" id="genPanel">
     <h2>Mis textos · generar frases con IA</h2>
-    <p class="help">Escribe un tema (en español o en turco) y la IA crea 8 frases de nivel A2 con su traducción. Se añaden arriba como un tema más para practicar.</p>
+    <p class="help">Escribe un tema (en español o en turco) y la IA crea 8 frases del <b>nivel elegido arriba</b> (<span id="lvlTxt">A2</span>) con su traducción. Se añaden arriba como un tema más para practicar.</p>
     <div class="gen">
       <input type="text" id="topicIn" maxlength="80" placeholder="Ej.: en la peluquería, el fútbol, alquilar un piso…">
       <button class="small-btn primary-s" id="bGen">✨ Generar frases</button>
@@ -597,6 +598,9 @@ $("bMine").onclick = playMine;
 $("bPrev").onclick = () => go(-1);
 $("bNext").onclick = () => go(1);
 $("bLoop").onclick = loopMode;
+S.level = store.get("level", "A2");
+$("level").value = S.level; $("lvlTxt").textContent = S.level;
+$("level").onchange = e => { S.level = e.target.value; store.set("level", S.level); $("lvlTxt").textContent = S.level; };
 $("tpPrev").onclick = () => goTopic(-1);
 $("tpNext").onclick = () => goTopic(1);
 $("tr").onclick = () => { if (!S.hideTr) return; S.peek = !S.peek; renderSentence(S.lastMarks); };
@@ -646,13 +650,13 @@ async function generate(){
   if (!GEN_URL) { $("genStatus").textContent = "El generador de frases se está terminando de configurar. Estará disponible muy pronto."; return; }
   const btn = $("bGen"); btn.disabled = true; $("genStatus").textContent = "Generando frases… (5–20 s)";
   try{
-    const r = await fetch(GEN_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({topic})});
+    const r = await fetch(GEN_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({topic, level: S.level})});
     const txt = await r.text();
     if (r.status === 429) throw new Error("Se ha alcanzado el límite gratuito de hoy. Vuelve a intentarlo mañana.");
     if (!r.ok) throw new Error("La IA no responde ahora mismo (" + r.status + "). Inténtalo en un minuto.");
     let data;
     try{ data = parseAI(txt); }catch(e){ throw new Error("La IA devolvió algo raro. Pulsa otra vez «Generar frases»."); }
-    const tp = {id: "g" + Date.now(), title: data.title || topic, es: data.es || topic, s: data.s};
+    const tp = {id: "g" + Date.now(), title: data.title || topic, es: `${S.level} · ${data.es || topic}`, s: data.s};
     const list = myTopics(); list.push(tp); store.set("mytopics", list);
     S.topic = 0; S.idx = 0; save(); render(); renderMyTopics();
     window.scrollTo({top:0, behavior:"smooth"});
