@@ -1,7 +1,14 @@
 // Cloudflare Worker para Gölge: genera frases de turco (A1-C1) con Workers AI (plan gratuito).
 // Requiere un binding de Workers AI llamado "AI".
 const ALLOWED = ["https://spanishgrows.github.io", "http://localhost:8766"];
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const MODELS = { llama: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", gptoss: "@cf/openai/gpt-oss-120b" };
+const DEFAULT = "gptoss";
+
+// Llama usa "messages"; GPT-OSS usa el formato Responses (instructions + input).
+async function ask(env, model, sys, user, temperature) {
+  if (model.includes("gpt-oss")) return env.AI.run(model, { instructions: sys, input: user, reasoning: { effort: "low" } });
+  return env.AI.run(model, { messages: [{ role: "system", content: sys }, { role: "user", content: user }], max_tokens: 2000, temperature });
+}
 
 const LEVELS = {
   A1: { words: "4 to 9", grammar: "very basic everyday vocabulary; present continuous (-iyor), var/yok, simple questions with mi/ne/nerede/kaç, numbers, polite set phrases (lütfen, teşekkürler)" },
@@ -44,8 +51,33 @@ function userPrompt(topic, level) {
     "Reply ONLY with the JSON object, with exactly 8 sentences.";
 }
 
+function reviewPrompt(level, draft) {
+  return `You are a meticulous native Turkish editor and CEFR examiner. Review this draft of 8 Turkish sentences for level ${level}.\n` +
+    "For EACH sentence:\n" +
+    "- Fix every grammar, suffix, vowel harmony, word order and spelling error (all special letters: ç ğ ı İ ö ş ü).\n" +
+    "- Replace any word that is not Turkish (English, Portuguese, Spanish…) with the correct Turkish word.\n" +
+    "- Make it sound natural, like a native speaker in Turkey would really say it; fix person/tense agreement.\n" +
+    `- Make sure the complexity really matches ${level}: ${LEVELS[level].grammar}; length ${LEVELS[level].words} words.\n` +
+    "- Correct the Spanish translation so it matches the final Turkish sentence exactly (natural Latin American Spanish).\n" +
+    "Also fix the title if it is not natural Turkish.\n" +
+    "Return ONLY the corrected JSON object with the same structure and exactly 8 sentences.\n\n" +
+    "Draft:\n" + JSON.stringify(draft);
+}
+
+function clean(data) {
+  return (data.sentences || [])
+    .filter(s => Array.isArray(s) && s[0])
+    .map(([tr, es]) => [String(tr).trim(), String(es || "").trim()])
+    .slice(0, 10);
+}
+
 function extract(out) {
-  let data = out && (out.response ?? out.result?.response ?? out);
+  let data = out && (out.response ?? out.result?.response);
+  if (data == null && Array.isArray(out?.output)) {
+    const msg = out.output.filter(o => o.type === "message").pop();
+    data = msg?.content?.map(c => c.text || "").join("") ?? "";
+  }
+  if (data == null) data = out;
   if (typeof data === "string") data = JSON.parse(data.match(/\{[\s\S]*\}/)[0]);
   return data;
 }
@@ -63,18 +95,28 @@ export default {
     const level = LEVELS[body.level] ? body.level : "A2";
     if (!topic) return json({ error: "Falta el tema" }, 400, origin);
 
+    const model = MODELS[body.model] || MODELS[DEFAULT];
     try {
-      const out = await env.AI.run(MODEL, {
-        messages: [{ role: "system", content: system(level) }, { role: "user", content: userPrompt(topic, level) }],
-        max_tokens: 2000, temperature: 0.4
-      });
-      const data = extract(out);
-      const sentences = (data.sentences || [])
-        .filter(s => Array.isArray(s) && s[0])
-        .map(([tr, es]) => [String(tr).trim(), String(es || "").trim()])
-        .slice(0, 10);
-      if (sentences.length < 3) throw new Error("pocas frases");
-      return json({ title: data.title || topic, title_es: data.title_es || topic, level, sentences }, 200, origin);
+      // Primera pasada (con un reintento si la respuesta no es válida)
+      let data = null, lastErr = null;
+      for (let i = 0; i < 2 && !data; i++) {
+        try {
+          const d = extract(await ask(env, model, system(level), userPrompt(topic, level), 0.4));
+          if (clean(d).length >= 3) data = d;
+        } catch (e) { lastErr = e; }
+      }
+      if (!data) throw lastErr || new Error("pocas frases");
+      // Segunda pasada: la IA revisa y corrige su propio borrador. Si falla, se usa el borrador.
+      let reviewed = false;
+      if (body.review !== false) {
+        try {
+          const draft = { title: data.title, title_es: data.title_es, sentences: clean(data) };
+          const rev = extract(await ask(env, model, system(level), reviewPrompt(level, draft), 0.1));
+          if (clean(rev).length >= 6) { data = rev; reviewed = true; }
+        } catch (e) {}
+      }
+      const sentences = clean(data);
+      return json({ title: data.title || topic, title_es: data.title_es || topic, level, reviewed, sentences }, 200, origin);
     } catch (e) {
       return json({ error: "No se pudieron generar las frases: " + (e.message || e) }, 502, origin);
     }

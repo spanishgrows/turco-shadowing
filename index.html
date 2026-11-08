@@ -648,7 +648,7 @@ async function generate(){
   const topic = $("topicIn").value.trim();
   if (!topic) { $("genStatus").textContent = "Escribe primero un tema."; $("topicIn").focus(); return; }
   if (!GEN_URL) { $("genStatus").textContent = "El generador de frases se está terminando de configurar. Estará disponible muy pronto."; return; }
-  const btn = $("bGen"); btn.disabled = true; $("genStatus").textContent = "Generando frases… (5–20 s)";
+  const btn = $("bGen"); btn.disabled = true; $("genStatus").textContent = "Generando y revisando las frases… (20–40 s)";
   try{
     const r = await fetch(GEN_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({topic, level: S.level})});
     const txt = await r.text();

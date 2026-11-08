@@ -15,7 +15,7 @@ App web para practicar turco con la técnica de *shadowing*: escuchar, hablar a 
 - Shadowing con grabación; con auriculares, puntuación palabra por palabra (Chrome, Edge, Safari).
 - Modo manos libres, shadowing a ciegas y racha diaria.
 - **Nivel A1–C1** en la cabecera.
-- **Mis textos:** escribe un tema y la IA genera 8 frases del nivel elegido con traducción (servidor: `worker.js` en Cloudflare Workers AI).
+- **Mis textos:** escribe un tema y la IA genera 8 frases del nivel elegido con traducción (servidor: `worker.js` en Cloudflare Workers AI, modelo GPT-OSS 120B con una segunda pasada de revisión).
 - **Copia de seguridad:** el progreso se guarda en el dispositivo; con «Copiar código» / «Restaurar» se pasa a otro móvil.
 
 Consejo: usa auriculares para el shadowing.
