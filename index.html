@@ -84,6 +84,15 @@ textarea{min-height:90px;resize:vertical}
 .kbd{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
 .status{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:1.4em}
 audio{display:none}
+.gen{display:flex;gap:8px;flex-wrap:wrap}
+.gen input{flex:1 1 220px;min-width:0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+.small-btn.primary-s{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.small-btn:disabled{opacity:.5;cursor:wait}
+.mytopic{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.mytopic header{margin:0 0 6px}
+.mytopic h3{font-size:15px;margin:0}
+.mytopic ol{margin:4px 0 0;padding-left:22px;font-size:14px}
+.mytopic li span{color:var(--muted)}
 @media (max-width:520px){.kbd{display:none}.btn{font-size:12px}.card{padding:16px}}
 </style>
 </head>
@@ -110,9 +119,7 @@ audio{display:none}
 
     <div class="row">
       <button class="btn primary" id="bListen"><span class="ic">🔊</span>Escuchar</button>
-      <button class="btn" id="bSlow"><span class="ic">🐢</span>Lento</button>
       <button class="btn" id="bShadow"><span class="ic">👥</span>Shadowing</button>
-      <button class="btn" id="bRepeat"><span class="ic">🎙️</span>Repetir</button>
       <button class="btn" id="bMine" disabled><span class="ic">▶️</span>Mi voz</button>
     </div>
     <div class="nav">
@@ -121,7 +128,7 @@ audio{display:none}
       <button class="btn" id="bNext">Siguiente ▶</button>
     </div>
     <div class="status" id="status"></div>
-    <div class="kbd">Teclado: Espacio escuchar · S shadowing · R repetir · M mi voz · ← → cambiar frase · T texto</div>
+    <div class="kbd">Teclado: Espacio escuchar · S shadowing · M mi voz · ← → cambiar frase · T texto</div>
   </section>
 
   <section class="panel">
@@ -137,23 +144,35 @@ audio{display:none}
     </div>
   </section>
 
-  <section class="panel">
-    <h2>Mis textos</h2>
-    <p class="help">Pega un texto turco (de clase, una canción, un diálogo). Lo divido en frases y aparece como tema «Mis textos». Puedes añadir la traducción en la línea siguiente empezando con <b>=</b>, por ejemplo:<br><code>Bugün hava çok sıcak.</code><br><code>= Hoy hace mucho calor.</code></p>
-    <textarea id="custom" placeholder="Bugün hava çok sıcak.&#10;= Hoy hace mucho calor."></textarea>
-    <div class="row" style="margin-top:8px">
-      <button class="small-btn" id="bSaveCustom">Guardar como «Mis textos»</button>
-      <button class="small-btn danger" id="bClearCustom">Borrar mis textos</button>
+  <section class="panel" id="genPanel">
+    <h2>Mis textos · generar frases con IA</h2>
+    <p class="help">Escribe un tema (en español o en turco) y la IA crea 8 frases de nivel A2 con su traducción. Se añaden arriba como un tema más para practicar.</p>
+    <div class="gen">
+      <input type="text" id="topicIn" maxlength="80" placeholder="Ej.: en la peluquería, el fútbol, alquilar un piso…">
+      <button class="small-btn primary-s" id="bGen">✨ Generar frases</button>
     </div>
+    <div class="status" id="genStatus"></div>
+    <div id="myTopics"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Copia de seguridad</h2>
+    <p class="help">Tu progreso, tu racha y tus temas se guardan <b>en este dispositivo</b>, en este navegador. Para no perderlos o pasarlos a otro móvil, copia el código y guárdalo (por ejemplo, envíatelo por WhatsApp). Luego pégalo en «Restaurar».</p>
+    <div class="row" style="margin-top:8px">
+      <button class="small-btn" id="bExport">📋 Copiar código</button>
+      <button class="small-btn" id="bImport">♻️ Restaurar</button>
+    </div>
+    <textarea id="backup" style="margin-top:8px;display:none" readonly></textarea>
+    <div class="status" id="bkStatus"></div>
   </section>
 
   <section class="panel help">
     <h2>Cómo practicar (10–15 min al día)</h2>
     <ol>
       <li><b>Escuchar</b> 2–3 veces leyendo el texto y la traducción.</li>
-      <li><b>Lento</b>: fíjate en la entonación y las vocales (ı, ö, ü).</li>
-      <li><b>Shadowing</b>: habla <i>a la vez</i> que la voz, medio segundo detrás. Mejor con auriculares.</li>
-      <li><b>Repetir</b>: di la frase tú solo; te puntúo palabra por palabra. Luego compara con <b>Mi voz</b>.</li>
+      <li>Fíjate en la entonación y las vocales (ı, ö, ü). Si va rápido, baja la velocidad en Ajustes.</li>
+      <li><b>Shadowing</b>: habla <i>a la vez</i> que la voz, medio segundo detrás. Con auriculares, además te puntúo palabra por palabra.</li>
+      <li>Escucha tu grabación con <b>Mi voz</b> y compárala con el original.</li>
       <li>Activa <b>Ocultar el texto</b> cuando ya la tengas: el objetivo es imitar el sonido, no leer.</li>
       <li><b>Manos libres</b>: recorre el tema entero con pausas para repetir (para el coche o la cocina).</li>
     </ol>
@@ -253,19 +272,25 @@ const store = {
 };
 
 const $ = id => document.getElementById(id);
+const ONLINE = "piper:tr_TR-fahrettin-medium";
+// Pide al navegador que no borre los datos (sobre todo Safari/iPhone)
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
 const S = {
   topic: store.get("topic", 0), idx: store.get("idx", 0),
-  rate: store.get("rate", 0.85), voice: store.get("voice", ""),
+  rate: store.get("rate", 0.85), voice: store.get("voice2", ONLINE),
   reps: store.get("reps", "2"), pause: store.get("pause", "1.3"),
   hideTr: store.get("hideTr", false), hideEs: store.get("hideEs", false), phones: store.get("phones", false),
   progress: store.get("progress", {}), days: store.get("days", {}),
   peek: false, busy: false, loop: false, recUrl: null, lastDur: 0
 };
 
-function allTopics(){
-  const c = store.get("custom", null);
-  return c && c.length ? TOPICS.concat([{id:"custom", title:"Mis textos", es:"Tus frases", s:c}]) : TOPICS;
+function myTopics(){
+  const list = store.get("mytopics", []) || [];
+  const c = store.get("custom", null); // temas pegados a mano en la versión anterior
+  if (c && c.length) { list.push({id:"custom", title:"Mis textos", es:"Tus frases", s:c}); store.set("mytopics", list); store.set("custom", []); }
+  return list;
 }
+function allTopics(){ return TOPICS.concat(myTopics()); }
 function cur(){ const t = allTopics(); if (S.topic >= t.length) S.topic = 0; const tp = t[S.topic]; if (S.idx >= tp.s.length) S.idx = 0; return tp; }
 function key(tp, i){ return tp.id + ":" + tp.s[i][0]; }
 function todayStr(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -309,7 +334,7 @@ function renderStats(){
 }
 function render(){ S.lastMarks = null; renderTopics(); renderSentence(); renderStats(); $("result").className = "result"; setMine(null); }
 function esc(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function save(){ ["topic","idx","rate","voice","reps","pause","hideTr","hideEs","phones","progress","days"].forEach(k => store.set(k, S[k])); }
+function save(){ store.set("voice2", S.voice); ["topic","idx","rate","reps","pause","hideTr","hideEs","phones","progress","days"].forEach(k => store.set(k, S[k])); }
 function status(t){ $("status").textContent = t || ""; }
 
 function markPractice(score){
@@ -323,20 +348,80 @@ function markPractice(score){
 }
 
 // ---------- voz (TTS) ----------
+// Voces IA: Piper (neuronal, código abierto) funcionando dentro del dispositivo. Gratis y sin límites.
+const PIPER = [["tr_TR-fahrettin-medium","Fahrettin"],["tr_TR-fettah-medium","Fettah"],["tr_TR-dfki-medium","DFKI"]];
 let voices = [];
 function loadVoices(){
-  voices = speechSynthesis.getVoices().filter(v => /^tr/i.test(v.lang));
+  voices = ("speechSynthesis" in window) ? speechSynthesis.getVoices().filter(v => /^tr/i.test(v.lang)) : [];
   const rank = v => (/natural|online|neural/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2);
   voices.sort((a, b) => rank(a) - rank(b));
   const sel = $("voice"); sel.innerHTML = "";
-  voices.forEach(v => { const o = document.createElement("option"); o.value = v.name; o.textContent = v.name.replace(/Microsoft |Online \(Natural\) - /g, ""); sel.appendChild(o); });
-  if (!voices.length){ const o = document.createElement("option"); o.textContent = "(sin voz turca)"; sel.appendChild(o); }
-  if (voices.find(v => v.name === S.voice)) sel.value = S.voice; else if (voices[0]) S.voice = voices[0].name;
-  $("voiceWarn").classList.toggle("show", !voices.length && speechSynthesis.getVoices().length > 0);
+  PIPER.forEach(([id, name]) => { const o = document.createElement("option"); o.value = "piper:" + id; o.textContent = `${name} · voz IA (masculina)`; sel.appendChild(o); });
+  voices.forEach(v => { const o = document.createElement("option"); o.value = v.name; o.textContent = v.name.replace(/Microsoft |Online \(Natural\) - /g, "") + " · del dispositivo"; sel.appendChild(o); });
+  if (!S.voice.startsWith("piper:") && !voices.find(v => v.name === S.voice)) S.voice = ONLINE;
+  sel.value = S.voice;
+  $("voiceWarn").classList.remove("show");
 }
-if ("speechSynthesis" in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; setTimeout(loadVoices, 800); }
+loadVoices();
+if ("speechSynthesis" in window){ speechSynthesis.onvoiceschanged = loadVoices; setTimeout(loadVoices, 800); }
 
-function speak(text, rate){
+const ttsAudio = new Audio(); ttsAudio.preservesPitch = true;
+let ttsStop = null;
+const piper = {mod: null, session: null, voiceId: null, loading: null, loadingId: null, cache: new Map()};
+function piperReady(id){ return piper.session && piper.voiceId === id; }
+function loadPiper(id){
+  if (piperReady(id)) return Promise.resolve(piper.session);
+  if (piper.loading && piper.loadingId === id) return piper.loading;
+  piper.loadingId = id;
+  piper.loading = (async () => {
+    const m = piper.mod || (piper.mod = await import("https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.4/+esm"));
+    m.TtsSession._instance = null;
+    const s = await m.TtsSession.create({voiceId: id, progress: p => {
+      if (p && p.total && p.url && /\.onnx$/.test(p.url)) status(`Descargando la voz IA (solo la primera vez): ${Math.round(100 * p.loaded / p.total)} %`);
+    }});
+    piper.session = s; piper.voiceId = id; piper.cache.clear();
+    status("Voz IA lista ✔");
+    return s;
+  })();
+  piper.loading.catch(() => {}).finally(() => { piper.loading = null; });
+  return piper.loading;
+}
+async function piperBlob(id, text){
+  const k = id + "|" + text;
+  if (!piper.cache.has(k)) piper.cache.set(k, (await loadPiper(id)).predict(text).catch(e => { piper.cache.delete(k); throw e; }));
+  return piper.cache.get(k);
+}
+function playBlob(blob, rate){
+  return new Promise(res => {
+    let t0 = 0, done = false; const url = URL.createObjectURL(blob);
+    const fin = () => { if (done) return; done = true; ttsStop = null; URL.revokeObjectURL(url); res(t0 ? (performance.now() - t0) / 1000 : 0.1); };
+    ttsStop = () => { ttsAudio.pause(); fin(); };
+    ttsAudio.src = url;
+    ttsAudio.playbackRate = Math.min(1.2, Math.max(0.5, (rate || S.rate) / 0.9));
+    ttsAudio.onplaying = () => { if (!t0) t0 = performance.now(); };
+    ttsAudio.onended = fin; ttsAudio.onerror = fin;
+    const p = ttsAudio.play(); if (p) p.catch(fin);
+  });
+}
+function stopSpeech(){ if (ttsStop) ttsStop(); if (window.speechSynthesis) speechSynthesis.cancel(); }
+async function speak(text, rate){
+  if (S.voice.startsWith("piper:")){
+    const id = S.voice.slice(6);
+    if (piperReady(id)){
+      try{
+        const blob = await piperBlob(id, text);
+        // prepara la frase siguiente para que suene sin espera
+        const nx = cur().s[S.idx + 1]; if (nx) piperBlob(id, nx[0]).catch(() => {});
+        return await playBlob(blob, rate);
+      }catch(e){ status("La voz IA falló; uso la voz del dispositivo."); }
+    } else {
+      loadPiper(id).catch(() => status("No pude descargar la voz IA (¿sin conexión?). Uso la voz del dispositivo."));
+      if (!voices.length) { try{ return await playBlob(await piperBlob(id, text), rate); }catch(e){} }
+    }
+  }
+  return speakDevice(text, rate);
+}
+function speakDevice(text, rate){
   return new Promise(res => {
     if (!("speechSynthesis" in window)) return res(0);
     speechSynthesis.cancel();
@@ -448,33 +533,23 @@ function showResult(r){
 // ---------- acciones ----------
 function setBusy(btn, label){
   S.busy = !!btn;
-  ["bListen","bSlow","bShadow","bRepeat","bMine","bPrev","bNext"].forEach(id => { const b = $(id); if (b !== btn) b.disabled = !!btn || (id === "bMine" && !S.recUrl); });
+  ["bListen","bShadow","bMine","bPrev","bNext"].forEach(id => { const b = $(id); if (b !== btn) b.disabled = !!btn || (id === "bMine" && !S.recUrl); });
   document.querySelectorAll(".btn.live").forEach(b => b.classList.remove("live"));
   if (btn){ btn.classList.add("live"); btn.dataset.label = btn.dataset.label || btn.innerHTML; btn.innerHTML = `<span class="ic">⏹</span>${label}`; }
   else document.querySelectorAll("[data-label]").forEach(b => { b.innerHTML = b.dataset.label; delete b.dataset.label; });
 }
 async function listen(rate){
   if (S.busy) return;
-  status(""); S.lastDur = await speak(cur().s[S.idx][0], rate) || S.lastDur;
+  status("");
+  const tp = cur(), k = key(tp, S.idx);
+  S.lastDur = await speak(tp.s[S.idx][0], rate) || S.lastDur;
+  // escuchar una frase entera cuenta como práctica (una vez por visita a la frase)
+  if (S.heardKey !== k && cur() === tp){ S.heardKey = k; markPractice(null); }
 }
 let stopRequested = null;
-async function repeatMode(){
-  const b = $("bRepeat");
-  if (S.busy){ stopRequested && stopRequested(); return; }
-  setBusy(b, "Parar"); status("Habla ahora…"); $("result").className = "result";
-  await startCapture(true);
-  const manual = new Promise(r => stopRequested = r);
-  const limit = sleep(Math.max(5000, (S.lastDur || 3) * 2500));
-  await Promise.race([recogDone || manual, manual, limit]);
-  await stopCapture();
-  const alts = recogDone ? await Promise.race([recogDone, sleep(1500).then(() => [])]) : [];
-  stopRequested = null; setBusy(null); status("");
-  const pct = SR ? showResult(alts.length ? score(alts) : null) : null;
-  markPractice(pct);
-}
 async function shadowMode(){
   const b = $("bShadow");
-  if (S.busy){ stopRequested && stopRequested(); speechSynthesis.cancel(); return; }
+  if (S.busy){ stopRequested && stopRequested(); stopSpeech(); return; }
   setBusy(b, "Parar"); status(S.phones ? "Habla a la vez que la voz…" : "Habla a la vez que la voz (sin auriculares no puntúo)");
   $("result").className = "result";
   await startCapture(S.phones);
@@ -493,7 +568,7 @@ function playMine(){
 }
 async function loopMode(){
   const b = $("bLoop");
-  if (S.loop){ S.loop = false; speechSynthesis.cancel(); return; }
+  if (S.loop){ S.loop = false; stopSpeech(); return; }
   S.loop = true; b.textContent = "⏹ Parar"; b.classList.add("live");
   const tp = cur(), reps = +S.reps, factor = +S.pause;
   try{
@@ -512,12 +587,10 @@ async function loopMode(){
     S.loop = false; b.textContent = "🔁 Manos libres"; b.classList.remove("live"); status("");
   }
 }
-function stopAll(){ S.loop = false; if (window.speechSynthesis) speechSynthesis.cancel(); stopRequested && stopRequested(); }
+function stopAll(){ S.loop = false; stopSpeech(); stopRequested && stopRequested(); }
 function go(d){ if (S.busy) return; stopAll(); const n = cur().s.length; S.idx = (S.idx + d + n) % n; S.lastMarks = null; save(); render(); }
 
 $("bListen").onclick = () => listen();
-$("bSlow").onclick = () => listen(Math.max(0.5, S.rate - 0.3));
-$("bRepeat").onclick = repeatMode;
 $("bShadow").onclick = shadowMode;
 $("bMine").onclick = playMine;
 $("bPrev").onclick = () => go(-1);
@@ -535,21 +608,78 @@ $("pause").value = S.pause; $("pause").onchange = e => { S.pause = e.target.valu
   $(id).checked = S[k]; $(id).onchange = e => { S[k] = e.target.checked; S.peek = false; save(); renderSentence(S.lastMarks); };
 });
 
-// mis textos
-$("custom").value = (store.get("custom", []) || []).map(([t, e]) => e ? `${t}\n= ${e}` : t).join("\n");
-$("bSaveCustom").onclick = () => {
-  const out = [];
-  $("custom").value.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach(l => {
-    if (l.startsWith("=")) { if (out.length) out[out.length-1][1] = l.slice(1).trim(); return; }
-    (l.match(/[^.!?…]+[.!?…]*/g) || []).map(x => x.trim()).filter(Boolean).forEach(x => out.push([x, ""]));
+// ---------- mis textos: generar frases con IA (Cloudflare Workers AI, ver worker.js) ----------
+const GEN_URL = ""; // URL del Worker de Cloudflare, p. ej. https://golge-ia.<cuenta>.workers.dev
+function renderMyTopics(){
+  const box = $("myTopics"), list = myTopics();
+  box.innerHTML = list.length ? "" : `<p class="help" style="margin:10px 0 0">Todavía no has generado ningún tema.</p>`;
+  list.slice().reverse().forEach(tp => {
+    const d = document.createElement("div"); d.className = "mytopic";
+    d.innerHTML = `<header style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3>${esc(tp.title)} <span class="help">· ${esc(tp.es || "")}</span></h3>
+        <span><button class="small-btn" data-go>▶ Practicar</button> <button class="small-btn danger" data-del>Borrar</button></span>
+      </header>
+      <ol>${tp.s.map(([t, e]) => `<li>${esc(t)} <span>— ${esc(e || "")}</span></li>`).join("")}</ol>`;
+    d.querySelector("[data-go]").onclick = () => {
+      stopAll(); S.topic = allTopics().findIndex(t => t.id === tp.id); S.idx = 0; save(); render(); window.scrollTo({top:0, behavior:"smooth"});
+    };
+    d.querySelector("[data-del]").onclick = () => {
+      if (!confirm(`¿Borrar el tema «${tp.title}»?`)) return;
+      store.set("mytopics", myTopics().filter(t => t.id !== tp.id)); S.topic = 0; S.idx = 0; save(); render(); renderMyTopics();
+    };
+    box.appendChild(d);
   });
-  if (!out.length) return status("Pega primero algún texto en turco.");
-  store.set("custom", out); S.topic = allTopics().length - 1; S.idx = 0; save(); render();
-  status(`Guardadas ${out.length} frases en «Mis textos».`); window.scrollTo({top:0, behavior:"smooth"});
+}
+function parseAI(txt){
+  const m = txt.match(/\{[\s\S]*\}/); if (!m) throw new Error("formato");
+  const j = JSON.parse(m[0]);
+  const s = (j.sentences || []).filter(x => Array.isArray(x) && x[0]).map(([t, e]) => [String(t).trim(), String(e || "").trim()]);
+  if (s.length < 3) throw new Error("pocas frases");
+  return {title: String(j.title || "").trim(), es: String(j.title_es || "").trim(), s: s.slice(0, 10)};
+}
+async function generate(){
+  const topic = $("topicIn").value.trim();
+  if (!topic) { $("genStatus").textContent = "Escribe primero un tema."; $("topicIn").focus(); return; }
+  if (!GEN_URL) { $("genStatus").textContent = "El generador de frases se está terminando de configurar. Estará disponible muy pronto."; return; }
+  const btn = $("bGen"); btn.disabled = true; $("genStatus").textContent = "Generando frases… (5–20 s)";
+  try{
+    const r = await fetch(GEN_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({topic})});
+    const txt = await r.text();
+    if (r.status === 429) throw new Error("Se ha alcanzado el límite gratuito de hoy. Vuelve a intentarlo mañana.");
+    if (!r.ok) throw new Error("La IA no responde ahora mismo (" + r.status + "). Inténtalo en un minuto.");
+    let data;
+    try{ data = parseAI(txt); }catch(e){ throw new Error("La IA devolvió algo raro. Pulsa otra vez «Generar frases»."); }
+    const tp = {id: "g" + Date.now(), title: data.title || topic, es: data.es || topic, s: data.s};
+    const list = myTopics(); list.push(tp); store.set("mytopics", list);
+    S.topic = allTopics().length - 1; S.idx = 0; save(); render(); renderMyTopics();
+    $("topicIn").value = "";
+    $("genStatus").textContent = `Listo: ${tp.s.length} frases en «${tp.title}». Ya están arriba para practicar.`;
+  }catch(e){
+    $("genStatus").textContent = e.message && e.message.length > 20 ? e.message : "No pude conectar con la IA. Revisa tu conexión e inténtalo de nuevo.";
+  }finally{ btn.disabled = false; }
+}
+$("bGen").onclick = generate;
+$("topicIn").addEventListener("keydown", e => { if (e.key === "Enter") generate(); });
+renderMyTopics();
+
+// ---------- copia de seguridad ----------
+$("bExport").onclick = async () => {
+  const data = {};
+  try{ for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k.startsWith("golge:")) data[k] = localStorage.getItem(k); } }catch(e){}
+  const code = "GOLGE1:" + btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  const ta = $("backup"); ta.style.display = "block"; ta.value = code; ta.select();
+  try{ await navigator.clipboard.writeText(code); $("bkStatus").textContent = "Código copiado. Guárdalo en un lugar seguro (por ejemplo, envíatelo por WhatsApp)."; }
+  catch(e){ $("bkStatus").textContent = "Copia el código del recuadro y guárdalo."; }
 };
-$("bClearCustom").onclick = () => {
-  if (!confirm("¿Borrar todas tus frases?")) return;
-  store.set("custom", []); $("custom").value = ""; S.topic = 0; S.idx = 0; save(); render();
+$("bImport").onclick = () => {
+  const code = (prompt("Pega aquí tu código de copia de seguridad:") || "").trim();
+  if (!code) return;
+  try{
+    const data = JSON.parse(decodeURIComponent(escape(atob(code.replace(/^GOLGE1:/, "")))));
+    if (!confirm("Esto reemplaza el progreso de este dispositivo por el de la copia. ¿Continuar?")) return;
+    Object.entries(data).forEach(([k, v]) => { if (k.startsWith("golge:")) localStorage.setItem(k, v); });
+    location.reload();
+  }catch(e){ $("bkStatus").textContent = "Ese código no es válido. Cópialo entero, sin cortar."; }
 };
 
 // teclado
@@ -558,7 +688,6 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (k === " "){ e.preventDefault(); listen(); }
   else if (k === "s") shadowMode();
-  else if (k === "r") repeatMode();
   else if (k === "m") playMine();
   else if (k === "t"){ $("hideTr").checked = S.hideTr = !S.hideTr; save(); renderSentence(S.lastMarks); }
   else if (e.key === "ArrowRight") go(1);
