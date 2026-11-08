@@ -86,6 +86,7 @@ textarea{min-height:90px;resize:vertical}
 .kbd{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
 .status{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:1.4em}
 audio{display:none}
+.status.live{color:var(--accent);font-weight:700;font-size:16px}
 .gen{display:flex;gap:8px;flex-wrap:wrap}
 .gen input{flex:1 1 220px;min-width:0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
 .small-btn.primary-s{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -146,7 +147,6 @@ audio{display:none}
       <label>Pausa para repetir (× duración)<select id="pause"><option value="1">1×</option><option value="1.3">1,3×</option><option value="1.6">1,6×</option><option value="2">2×</option></select></label>
       <label class="inline"><input type="checkbox" id="hideTr"> Ocultar el texto turco (shadowing a ciegas)</label>
       <label class="inline"><input type="checkbox" id="hideEs"> Ocultar la traducción</label>
-      <label class="inline"><input type="checkbox" id="phones"> Uso auriculares (puntuar también en shadowing)</label>
     </div>
   </section>
 
@@ -177,7 +177,7 @@ audio{display:none}
     <ol>
       <li><b>Escuchar</b> 2–3 veces leyendo el texto y la traducción.</li>
       <li>Fíjate en la entonación y las vocales (ı, ö, ü). Si va rápido, baja la velocidad en Ajustes.</li>
-      <li><b>Shadowing</b>: habla <i>a la vez</i> que la voz, medio segundo detrás. Con auriculares, además te puntúo palabra por palabra.</li>
+      <li><b>Shadowing</b> tiene 2 pasos: <b>1)</b> suena la frase y hablas <i>a la vez</i> que la voz; <b>2)</b> suena un pitido, dices la frase tú solo y te puntúo palabra por palabra (verde = bien, rojo = repasar).</li>
       <li>Escucha tu grabación con <b>Mi voz</b> y compárala con el original.</li>
       <li>Activa <b>Ocultar el texto</b> cuando ya la tengas: el objetivo es imitar el sonido, no leer.</li>
       <li><b>Manos libres</b>: recorre el tema entero con pausas para repetir (para el coche o la cocina).</li>
@@ -444,48 +444,70 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // ---------- micrófono y reconocimiento ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SR) $("recWarn").classList.add("show");
-let stream = null, recorder = null, chunks = [], recog = null, recogDone = null;
+let stream = null, recorder = null, chunks = [], recog = null;
 
-async function getMic(){
-  if (stream) return stream;
-  stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
-  return stream;
-}
-async function startCapture(withRecog){
-  chunks = [];
+// Grabación de tu voz (para «Mi voz»). Se libera el micrófono al terminar,
+// porque en Android el reconocimiento de voz falla si otra cosa lo está usando.
+async function startRecording(){
+  chunks = []; recorder = null;
   try{
-    const s = await getMic();
-    recorder = new MediaRecorder(s);
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+    recorder = new MediaRecorder(stream);
     recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
     recorder.start();
-  }catch(e){ status("No tengo acceso al micrófono. Permítelo en el candado de la barra de direcciones."); recorder = null; }
-  recogDone = null;
-  if (withRecog && SR){
-    recog = new SR(); recog.lang = "tr-TR"; recog.interimResults = true; recog.maxAlternatives = 5; recog.continuous = false;
-    let finals = [];
-    recogDone = new Promise(res => {
+    return true;
+  }catch(e){
+    status(e && e.name === "NotAllowedError" ? "⚠️ Permite el micrófono (icono del candado, junto a la dirección) y vuelve a intentarlo." : "⚠️ No encuentro el micrófono.");
+    return false;
+  }
+}
+function stopRecording(){
+  return new Promise(res => {
+    const done = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; res(); };
+    if (recorder && recorder.state !== "inactive"){
+      recorder.onstop = () => { setMine(URL.createObjectURL(new Blob(chunks, {type: recorder.mimeType || "audio/webm"}))); done(); };
+      recorder.stop();
+    } else done();
+  });
+}
+
+// Reconocimiento de voz: escucha hasta que terminas de hablar (o hasta maxMs) y devuelve lo que entendió.
+const REC_ERR = {
+  "no-speech": "No te he oído. Habla un poco más alto y cerca del micrófono.",
+  "audio-capture": "No encuentro el micrófono.",
+  "not-allowed": "Permite el micrófono (icono del candado, junto a la dirección) y vuelve a intentarlo.",
+  "service-not-allowed": "Este navegador no permite el reconocimiento de voz aquí. Prueba en Chrome.",
+  "network": "El reconocimiento de voz necesita conexión a internet.",
+  "language-not-supported": "Este navegador no reconoce turco. Prueba en Chrome."
+};
+function recognize(maxMs, onInterim){
+  return new Promise(res => {
+    let finals = [], interim = "", error = null, finished = false;
+    const finish = () => { if (finished) return; finished = true; clearTimeout(timer); stopRequested = null;
+      res({alts: finals.length ? finals : (interim ? [interim] : []), error}); };
+    try{
+      recog = new SR(); recog.lang = "tr-TR"; recog.interimResults = true; recog.maxAlternatives = 5; recog.continuous = false;
       recog.onresult = e => {
         const r = e.results[e.results.length - 1];
         if (r.isFinal) finals = Array.from(r).map(a => a.transcript);
-        else status("Oigo: " + r[0].transcript);
+        else { interim = r[0].transcript; onInterim && onInterim(interim); }
       };
-      recog.onerror = e => { if (e.error === "not-allowed") status("Permite el micrófono para puntuar."); };
-      recog.onend = () => res(finals);
-    });
-    try{ recog.start(); }catch(e){ recogDone = null; }
-  }
-}
-function stopCapture(){
-  return new Promise(res => {
-    if (recog){ try{ recog.stop(); }catch(e){} }
-    if (recorder && recorder.state !== "inactive"){
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, {type: recorder.mimeType || "audio/webm"});
-        setMine(URL.createObjectURL(blob)); res();
-      };
-      recorder.stop();
-    } else res();
+      recog.onerror = e => { error = e.error; };
+      recog.onend = finish;
+      recog.start();
+    }catch(e){ error = "start"; finish(); }
+    const timer = setTimeout(() => { try{ recog.stop(); }catch(e){} setTimeout(finish, 1200); }, maxMs);
+    stopRequested = () => { try{ recog.stop(); }catch(e){} setTimeout(finish, 1200); };
   });
+}
+// Pitido corto para indicar «ahora te toca»
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 880; g.gain.setValueAtTime(0.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.25);
+    return sleep(300);
+  }catch(e){ return Promise.resolve(); }
 }
 function setMine(url){
   if (S.recUrl) URL.revokeObjectURL(S.recUrl);
@@ -549,21 +571,45 @@ async function listen(rate){
   if (S.heardKey !== k && cur() === tp){ S.heardKey = k; markPractice(null); }
 }
 let stopRequested = null;
+// Shadowing en 2 pasos:
+//  1) Suena la frase y hablas a la vez que la voz (se graba tu voz para «Mi voz»).
+//  2) Pitido: dices la frase tú solo y te puntúo palabra por palabra.
+let cancelled = false;
 async function shadowMode(){
   const b = $("bShadow");
-  if (S.busy){ stopRequested && stopRequested(); stopSpeech(); return; }
-  setBusy(b, "Parar"); status(S.phones ? "Habla a la vez que la voz…" : "Habla a la vez que la voz (sin auriculares no puntúo)");
-  $("result").className = "result";
-  await startCapture(S.phones);
-  const manual = new Promise(r => stopRequested = r);
-  await Promise.race([speak(cur().s[S.idx][0]).then(d => { if (d) S.lastDur = d; }), manual]);
-  await Promise.race([sleep(900), manual]);
-  await stopCapture();
-  const alts = recogDone ? await Promise.race([recogDone, sleep(1500).then(() => [])]) : [];
-  stopRequested = null; setBusy(null); status("Escucha tu grabación con «Mi voz».");
-  const pct = (S.phones && SR) ? showResult(alts.length ? score(alts) : null) : null;
-  markPractice(pct);
+  if (S.busy){ cancelled = true; stopRequested && stopRequested(); stopSpeech(); return; }
+  cancelled = false;
+  const sentence = cur().s[S.idx][0];
+  setBusy(b, "Parar"); $("result").className = "result"; S.lastMarks = null; renderSentence();
+  try{
+    // Paso 1: shadowing con la voz
+    liveStatus("Paso 1 de 2 · 👥 Habla a la vez que la voz");
+    const recOk = await startRecording();
+    const manual = new Promise(r => stopRequested = r);
+    await Promise.race([speak(sentence).then(d => { if (d) S.lastDur = d; }), manual]);
+    if (!cancelled) await Promise.race([sleep(1200), manual]);
+    await stopRecording();
+    if (cancelled) return;
+
+    // Paso 2: tú solo, con puntuación
+    if (!SR){ liveStatus(""); status(recOk ? "Escucha tu grabación con «Mi voz». (Este navegador no puede puntuar: usa Chrome.)" : ""); markPractice(null); return; }
+    await beep();
+    liveStatus("Paso 2 de 2 · 🎙️ Ahora tú solo: di la frase");
+    const box = $("result"); box.innerHTML = "🎙️ Te escucho…"; box.className = "result show";
+    const maxMs = Math.max(7000, (S.lastDur || 3) * 3000 + 3000);
+    const {alts, error} = await recognize(maxMs, t => { box.innerHTML = "🎙️ Te escucho: «" + esc(t) + "»"; });
+    if (cancelled) { box.className = "result"; return; }
+    liveStatus("");
+    if (alts.length){ markPractice(showResult(score(alts))); }
+    else {
+      box.innerHTML = "⚠️ " + (REC_ERR[error] || REC_ERR["no-speech"]); box.className = "result show";
+      markPractice(null);
+    }
+  } finally {
+    stopRequested = null; setBusy(null); if (cancelled) liveStatus("");
+  }
 }
+function liveStatus(t){ const s = $("status"); s.textContent = t || ""; s.classList.toggle("live", !!t); }
 function playMine(){
   if (!S.recUrl || S.busy) return;
   const a = $("player"); a.src = S.recUrl; a.play();
@@ -611,7 +657,7 @@ $("rate").oninput = e => { S.rate = +e.target.value; $("rateVal").textContent = 
 $("voice").onchange = e => { S.voice = e.target.value; save(); listen(); };
 $("reps").value = S.reps; $("reps").onchange = e => { S.reps = e.target.value; save(); };
 $("pause").value = S.pause; $("pause").onchange = e => { S.pause = e.target.value; save(); };
-[["hideTr","hideTr"],["hideEs","hideEs"],["phones","phones"]].forEach(([id, k]) => {
+[["hideTr","hideTr"],["hideEs","hideEs"]].forEach(([id, k]) => {
   $(id).checked = S[k]; $(id).onchange = e => { S[k] = e.target.checked; S.peek = false; save(); renderSentence(S.lastMarks); };
 });
 

@@ -12,7 +12,7 @@ App web para practicar turco con la técnica de *shadowing*: escuchar, hablar a 
 ## Qué incluye
 - 9 temas A2 con traducción al español (presentarse, café, compras, transporte, rutina, pasado, futuro, salud, texto corrido).
 - Voz turca con IA (Piper, neuronal y gratuita, funciona dentro del dispositivo; se descarga una vez, ~63 MB) o la voz del sistema.
-- Shadowing con grabación; con auriculares, puntuación palabra por palabra (Chrome, Edge, Safari).
+- Shadowing en 2 pasos: hablas a la vez que la voz (se graba) y luego dices la frase solo y te puntúa palabra por palabra (Chrome).
 - Modo manos libres, shadowing a ciegas y racha diaria.
 - **Nivel A1–C1** en la cabecera.
 - **Mis textos:** escribe un tema y la IA genera 8 frases del nivel elegido con traducción (servidor: `worker.js` en Cloudflare Workers AI, modelo GPT-OSS 120B con una segunda pasada de revisión).
