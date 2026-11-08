@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gölge · Turco shadowing</title>
+<meta name="description" content="Practica turco A2 con la técnica de shadowing: escucha, repite, grábate y compara.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c8102e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gölge">
+<style>
+:root{
+  --bg:#f6f4ef; --card:#ffffff; --ink:#1d1f24; --muted:#6b6f78; --line:#e3e0d8;
+  --accent:#c8102e; --accent-ink:#fff; --ok:#1f8a4c; --bad:#c23a2b; --warn:#b7791f;
+  --soft:#f1eee7; --shadow:0 1px 2px rgba(0,0,0,.05),0 6px 24px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15161a; --card:#1e2026; --ink:#ecebe7; --muted:#9a9ea8; --line:#2e3139;
+    --accent:#ff4d5e; --accent-ink:#15161a; --ok:#4cc483; --bad:#ff7a6b; --warn:#e6b450;
+    --soft:#262931; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15161a; --card:#1e2026; --ink:#ecebe7; --muted:#9a9ea8; --line:#2e3139;
+  --accent:#ff4d5e; --accent-ink:#15161a; --ok:#4cc483; --bad:#ff7a6b; --warn:#e6b450;
+  --soft:#262931; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
+.stats{display:flex;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap;justify-content:flex-end}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.topics{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:thin}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}
+.chip small{color:var(--muted);margin-left:6px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.on small{color:inherit;opacity:.7}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
+.tr{font-size:clamp(22px,5.4vw,30px);line-height:1.35;font-weight:600;margin:6px 0 8px;cursor:pointer;transition:filter .2s;min-height:2.7em}
+.tr.hidden{filter:blur(9px);user-select:none}
+.tr .w{border-radius:4px;padding:0 1px}
+.tr .w.ok{color:var(--ok)} .tr .w.bad{color:var(--bad);text-decoration:underline wavy;text-underline-offset:5px}
+.es{color:var(--muted);font-size:16px;min-height:1.5em}
+.es.hidden{visibility:hidden}
+.result{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:14px;display:none}
+.result.show{display:block}
+.result b{font-size:18px}
+.heard{color:var(--muted);margin-top:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button{font:inherit}
+.btn{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 6px;cursor:pointer;font-size:13px}
+.btn .ic{font-size:22px;line-height:1}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.live{background:var(--bad);border-color:var(--bad);color:#fff;animation:pulse 1.2s infinite}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+@keyframes pulse{50%{opacity:.75}}
+.nav{display:flex;gap:8px;margin-top:8px}
+.nav .btn{flex-direction:row;justify-content:center;gap:6px;font-size:14px}
+.panel{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.panel h2{font-size:15px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px}
+label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+label.inline{flex-direction:row;align-items:center;gap:8px;color:var(--ink)}
+select,input[type=range],textarea{width:100%}
+select,textarea{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 8px;font:inherit}
+textarea{min-height:90px;resize:vertical}
+.warn{background:color-mix(in srgb,var(--warn) 15%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px;display:none}
+.warn.show{display:block}
+.help{font-size:14px;color:var(--muted)}
+.help ol{padding-left:20px;margin:6px 0}
+.small-btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
+.small-btn.danger{color:var(--bad)}
+.kbd{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
+.status{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:1.4em}
+audio{display:none}
+@media (max-width:520px){.kbd{display:none}.btn{font-size:12px}.card{padding:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Gölge <small>Turco A2 · shadowing</small></h1>
+    <div class="stats">
+      <span class="pill" id="streak">🔥 0 días</span>
+      <span class="pill" id="today">Hoy: 0</span>
+    </div>
+  </header>
+
+  <div class="warn" id="voiceWarn">No encuentro una voz turca en este navegador. Prueba con <b>Edge</b> o <b>Chrome</b> (o instala el paquete de voz turco en Windows: Configuración → Hora e idioma → Voz).</div>
+  <div class="warn" id="recWarn">Este navegador no reconoce la voz, así que no habrá puntuación. Puedes grabarte y comparar igual. Para puntuar, usa Chrome o Edge.</div>
+
+  <nav class="topics" id="topics"></nav>
+
+  <section class="card">
+    <div class="meta"><span id="pos">1 / 8</span><span id="best"></span></div>
+    <div class="tr" id="tr" title="Toca para mostrar u ocultar"></div>
+    <div class="es" id="es"></div>
+    <div class="result" id="result"></div>
+
+    <div class="row">
+      <button class="btn primary" id="bListen"><span class="ic">🔊</span>Escuchar</button>
+      <button class="btn" id="bSlow"><span class="ic">🐢</span>Lento</button>
+      <button class="btn" id="bShadow"><span class="ic">👥</span>Shadowing</button>
+      <button class="btn" id="bRepeat"><span class="ic">🎙️</span>Repetir</button>
+      <button class="btn" id="bMine" disabled><span class="ic">▶️</span>Mi voz</button>
+    </div>
+    <div class="nav">
+      <button class="btn" id="bPrev">◀ Anterior</button>
+      <button class="btn" id="bLoop">🔁 Manos libres</button>
+      <button class="btn" id="bNext">Siguiente ▶</button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="kbd">Teclado: Espacio escuchar · S shadowing · R repetir · M mi voz · ← → cambiar frase · T texto</div>
+  </section>
+
+  <section class="panel">
+    <h2>Ajustes</h2>
+    <div class="grid">
+      <label>Velocidad <span id="rateVal"></span><input type="range" id="rate" min="0.5" max="1.1" step="0.05"></label>
+      <label>Voz turca<select id="voice"></select></label>
+      <label>Repeticiones en manos libres<select id="reps"><option>1</option><option>2</option><option>3</option><option>5</option></select></label>
+      <label>Pausa para repetir (× duración)<select id="pause"><option value="1">1×</option><option value="1.3">1,3×</option><option value="1.6">1,6×</option><option value="2">2×</option></select></label>
+      <label class="inline"><input type="checkbox" id="hideTr"> Ocultar el texto turco (shadowing a ciegas)</label>
+      <label class="inline"><input type="checkbox" id="hideEs"> Ocultar la traducción</label>
+      <label class="inline"><input type="checkbox" id="phones"> Uso auriculares (puntuar también en shadowing)</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Mis textos</h2>
+    <p class="help">Pega un texto turco (de clase, una canción, un diálogo). Lo divido en frases y aparece como tema «Mis textos». Puedes añadir la traducción en la línea siguiente empezando con <b>=</b>, por ejemplo:<br><code>Bugün hava çok sıcak.</code><br><code>= Hoy hace mucho calor.</code></p>
+    <textarea id="custom" placeholder="Bugün hava çok sıcak.&#10;= Hoy hace mucho calor."></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="small-btn" id="bSaveCustom">Guardar como «Mis textos»</button>
+      <button class="small-btn danger" id="bClearCustom">Borrar mis textos</button>
+    </div>
+  </section>
+
+  <section class="panel help">
+    <h2>Cómo practicar (10–15 min al día)</h2>
+    <ol>
+      <li><b>Escuchar</b> 2–3 veces leyendo el texto y la traducción.</li>
+      <li><b>Lento</b>: fíjate en la entonación y las vocales (ı, ö, ü).</li>
+      <li><b>Shadowing</b>: habla <i>a la vez</i> que la voz, medio segundo detrás. Mejor con auriculares.</li>
+      <li><b>Repetir</b>: di la frase tú solo; te puntúo palabra por palabra. Luego compara con <b>Mi voz</b>.</li>
+      <li>Activa <b>Ocultar el texto</b> cuando ya la tengas: el objetivo es imitar el sonido, no leer.</li>
+      <li><b>Manos libres</b>: recorre el tema entero con pausas para repetir (para el coche o la cocina).</li>
+    </ol>
+  </section>
+  <audio id="player"></audio>
+</div>
+
+<script>
+const TOPICS = [
+  {id:"tanisma", title:"Tanışma", es:"Presentarse", s:[
+    ["Merhaba, benim adım Ali.","Hola, me llamo Ali."],
+    ["İspanyolum ama İzmir'de yaşıyorum.","Soy español pero vivo en Esmirna."],
+    ["Beş yıldır Türkiye'deyim.","Hace cinco años que estoy en Turquía."],
+    ["Bir şirkette mühendisim.","Soy ingeniero en una empresa."],
+    ["Türkçe öğreniyorum, biraz konuşabiliyorum.","Estoy aprendiendo turco, puedo hablar un poco."],
+    ["Tanıştığımıza memnun oldum.","Encantado de conocerte."],
+    ["Nerelisiniz?","¿De dónde es usted?"],
+    ["Evli misiniz, çocuğunuz var mı?","¿Está casado? ¿Tiene hijos?"]]},
+  {id:"kafe", title:"Kafe ve restoran", es:"Café y restaurante", s:[
+    ["Bir çay alabilir miyim, lütfen?","¿Me da un té, por favor?"],
+    ["Menüyü görebilir miyim?","¿Puedo ver el menú?"],
+    ["Ne tavsiye edersiniz?","¿Qué me recomienda?"],
+    ["Acı olmasın, lütfen.","Que no sea picante, por favor."],
+    ["Hesabı alabilir miyiz?","¿Nos trae la cuenta?"],
+    ["Kartla ödeyebilir miyim?","¿Puedo pagar con tarjeta?"],
+    ["Yemekler çok lezzetliydi, elinize sağlık.","La comida estaba riquísima, ¡felicitaciones!"],
+    ["Paket yapabilir misiniz?","¿Me lo pone para llevar?"]]},
+  {id:"alisveris", title:"Alışveriş", es:"De compras", s:[
+    ["Bu ne kadar?","¿Cuánto cuesta esto?"],
+    ["Biraz pahalı, indirim var mı?","Es un poco caro, ¿hay descuento?"],
+    ["Bir kilo domates istiyorum.","Quiero un kilo de tomates."],
+    ["Daha büyük bir beden var mı?","¿Hay una talla más grande?"],
+    ["Bunu deneyebilir miyim?","¿Puedo probármelo?"],
+    ["Poşet ister misiniz?","¿Quiere bolsa?"],
+    ["Hayır, teşekkürler, sadece bakıyorum.","No, gracias, solo estoy mirando."],
+    ["Pazar günü pazara gidiyoruz.","El domingo vamos al mercado."]]},
+  {id:"ulasim", title:"Yol ve ulaşım", es:"Direcciones y transporte", s:[
+    ["Affedersiniz, metro istasyonu nerede?","Disculpe, ¿dónde está la estación de metro?"],
+    ["Düz gidin, sonra sağa dönün.","Siga recto y luego gire a la derecha."],
+    ["Buraya uzak mı?","¿Está lejos de aquí?"],
+    ["Yürüyerek on dakika sürer.","Se tarda diez minutos a pie."],
+    ["Bu otobüs Alsancak'a gidiyor mu?","¿Este autobús va a Alsancak?"],
+    ["Vapur saat kaçta kalkıyor?","¿A qué hora sale el ferry?"],
+    ["Kartıma para yüklemem lazım.","Tengo que cargar dinero en mi tarjeta."],
+    ["Bir sonraki durakta ineceğim.","Me bajo en la próxima parada."]]},
+  {id:"rutin", title:"Günlük rutin", es:"Rutina diaria", s:[
+    ["Her sabah yedide kalkarım.","Todas las mañanas me levanto a las siete."],
+    ["Kahvaltıda peynir, zeytin ve domates yerim.","En el desayuno como queso, aceitunas y tomate."],
+    ["Sekiz buçukta evden çıkarım.","Salgo de casa a las ocho y media."],
+    ["Öğleden sonra ders hazırlarım.","Por la tarde preparo clases."],
+    ["Akşamları ailemle yemek yeriz.","Por las noches cenamos con mi familia."],
+    ["Hafta sonu genellikle sahilde yürüyüş yaparım.","Los fines de semana suelo caminar por la costa."],
+    ["Yatmadan önce biraz kitap okurum.","Antes de dormir leo un poco."],
+    ["Bazen çok yorgun oluyorum.","A veces estoy muy cansado."]]},
+  {id:"gecmis", title:"Dün ne yaptın?", es:"Pasado (-di)", s:[
+    ["Dün akşam arkadaşlarla buluştum.","Ayer por la tarde quedé con amigos."],
+    ["Kordon'da balık yedik.","Comimos pescado en el Kordon."],
+    ["Hava çok güzeldi.","Hacía muy buen tiempo."],
+    ["Eve geç döndüm.","Volví tarde a casa."],
+    ["Geçen hafta hastaydım, işe gitmedim.","La semana pasada estuve enfermo, no fui a trabajar."],
+    ["Film güzeldi ama biraz uzundu.","La película era buena pero un poco larga."],
+    ["Geçen yaz İstanbul'a gittik.","El verano pasado fuimos a Estambul."],
+    ["Hiç Kapadokya'ya gittin mi?","¿Alguna vez fuiste a Capadocia?"]]},
+  {id:"plan", title:"Planlar", es:"Futuro (-ecek)", s:[
+    ["Yarın market alışverişi yapacağım.","Mañana voy a hacer la compra."],
+    ["Bu akşam ne yapacaksın?","¿Qué vas a hacer esta noche?"],
+    ["Hafta sonu Çeşme'ye gideceğiz.","El fin de semana iremos a Çeşme."],
+    ["Seninle sinemaya gitmek istiyorum.","Quiero ir al cine contigo."],
+    ["Saat kaçta buluşalım?","¿A qué hora quedamos?"],
+    ["Maalesef gelemeyeceğim, işim var.","Lamentablemente no podré ir, tengo trabajo."],
+    ["Gelecek yıl Türkçe kursuna başlayacağım.","El año que viene empezaré un curso de turco."],
+    ["Sonra görüşürüz!","¡Nos vemos luego!"]]},
+  {id:"saglik", title:"Sağlık ve ev", es:"Salud y casa", s:[
+    ["Başım ağrıyor.","Me duele la cabeza."],
+    ["Doktordan randevu almak istiyorum.","Quiero pedir cita con el médico."],
+    ["İki gündür ateşim var.","Tengo fiebre desde hace dos días."],
+    ["Eczane nerede?","¿Dónde está la farmacia?"],
+    ["Bu ilacı günde üç kez için.","Tome este medicamento tres veces al día."],
+    ["Geçmiş olsun!","¡Que te mejores!"],
+    ["Ev sahibiyle konuşmam gerekiyor.","Tengo que hablar con el casero."],
+    ["Kombi çalışmıyor, tamirci çağırabilir misiniz?","La caldera no funciona, ¿puede llamar a un técnico?"]]},
+  {id:"metin", title:"Kısa metin", es:"Texto corrido", s:[
+    ["Benim adım Ayşe, otuz beş yaşındayım.","Me llamo Ayşe, tengo treinta y cinco años."],
+    ["Ailemle birlikte İzmir'de yaşıyorum.","Vivo en Esmirna con mi familia."],
+    ["İzmir'i çok seviyorum, çünkü deniz var ve insanlar sıcak.","Me encanta Esmirna porque hay mar y la gente es cálida."],
+    ["Hafta içi bir ofiste çalışıyorum.","Entre semana trabajo en una oficina."],
+    ["Akşamları spor salonuna gidiyorum.","Por las tardes voy al gimnasio."],
+    ["Boş zamanımda Türkçe çalışıyorum.","En mi tiempo libre estudio turco."],
+    ["Türkçe zor ama çok güzel bir dil.","El turco es difícil, pero es un idioma muy bonito."],
+    ["Her gün biraz daha iyi konuşuyorum.","Cada día hablo un poco mejor."]]}
+];
+
+// ---------- storage (tolerante a fallos) ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("golge:"+k); return v===null? d : JSON.parse(v);}catch(e){return d;} },
+  set(k, v){ try{ localStorage.setItem("golge:"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+const $ = id => document.getElementById(id);
+const S = {
+  topic: store.get("topic", 0), idx: store.get("idx", 0),
+  rate: store.get("rate", 0.85), voice: store.get("voice", ""),
+  reps: store.get("reps", "2"), pause: store.get("pause", "1.3"),
+  hideTr: store.get("hideTr", false), hideEs: store.get("hideEs", false), phones: store.get("phones", false),
+  progress: store.get("progress", {}), days: store.get("days", {}),
+  peek: false, busy: false, loop: false, recUrl: null, lastDur: 0
+};
+
+function allTopics(){
+  const c = store.get("custom", null);
+  return c && c.length ? TOPICS.concat([{id:"custom", title:"Mis textos", es:"Tus frases", s:c}]) : TOPICS;
+}
+function cur(){ const t = allTopics(); if (S.topic >= t.length) S.topic = 0; const tp = t[S.topic]; if (S.idx >= tp.s.length) S.idx = 0; return tp; }
+function key(tp, i){ return tp.id + ":" + tp.s[i][0]; }
+function todayStr(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+// ---------- render ----------
+function renderTopics(){
+  const box = $("topics"); box.innerHTML = "";
+  allTopics().forEach((tp, i) => {
+    const done = tp.s.filter((_, j) => (S.progress[key(tp, j)]||{}).n).length;
+    const b = document.createElement("button");
+    b.className = "chip" + (i === S.topic ? " on" : "");
+    b.innerHTML = `${tp.title}<small>${done}/${tp.s.length}</small>`;
+    b.title = tp.es;
+    b.onclick = () => { stopAll(); S.topic = i; S.idx = 0; save(); render(); };
+    box.appendChild(b);
+  });
+}
+function renderSentence(marks){
+  const tp = cur(), [tr, es] = tp.s[S.idx];
+  $("pos").textContent = `${tp.title} · ${S.idx+1} / ${tp.s.length}`;
+  const p = S.progress[key(tp, S.idx)];
+  $("best").textContent = p ? `Practicada ${p.n}× ${p.best!=null ? "· mejor " + p.best + "%" : ""}` : "Nueva";
+  const el = $("tr");
+  if (marks){
+    el.innerHTML = tr.split(/\s+/).map((w, i) => `<span class="w ${marks[i] ? "ok" : "bad"}">${esc(w)}</span>`).join(" ");
+  } else el.textContent = tr;
+  el.classList.toggle("hidden", S.hideTr && !S.peek);
+  $("es").textContent = es || "";
+  $("es").classList.toggle("hidden", S.hideEs && !S.peek);
+}
+function renderStats(){
+  const t = todayStr();
+  $("today").textContent = "Hoy: " + (S.days[t] || 0);
+  let n = 0; const d = new Date();
+  if (!S.days[t]) d.setDate(d.getDate() - 1);
+  while (true){
+    const k = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if (S.days[k]) { n++; d.setDate(d.getDate() - 1); } else break;
+  }
+  $("streak").textContent = `🔥 ${n} ${n === 1 ? "día" : "días"}`;
+}
+function render(){ S.lastMarks = null; renderTopics(); renderSentence(); renderStats(); $("result").className = "result"; setMine(null); }
+function esc(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function save(){ ["topic","idx","rate","voice","reps","pause","hideTr","hideEs","phones","progress","days"].forEach(k => store.set(k, S[k])); }
+function status(t){ $("status").textContent = t || ""; }
+
+function markPractice(score){
+  const tp = cur(), k = key(tp, S.idx);
+  const p = S.progress[k] || {n:0, best:null};
+  p.n++; if (score != null) p.best = Math.max(p.best || 0, score);
+  S.progress[k] = p;
+  const t = todayStr(); S.days[t] = (S.days[t] || 0) + 1;
+  save(); renderTopics(); renderStats();
+  renderSentence(S.lastMarks);
+}
+
+// ---------- voz (TTS) ----------
+let voices = [];
+function loadVoices(){
+  voices = speechSynthesis.getVoices().filter(v => /^tr/i.test(v.lang));
+  const rank = v => (/natural|online|neural/i.test(v.name) ? 0 : /google/i.test(v.name) ? 1 : 2);
+  voices.sort((a, b) => rank(a) - rank(b));
+  const sel = $("voice"); sel.innerHTML = "";
+  voices.forEach(v => { const o = document.createElement("option"); o.value = v.name; o.textContent = v.name.replace(/Microsoft |Online \(Natural\) - /g, ""); sel.appendChild(o); });
+  if (!voices.length){ const o = document.createElement("option"); o.textContent = "(sin voz turca)"; sel.appendChild(o); }
+  if (voices.find(v => v.name === S.voice)) sel.value = S.voice; else if (voices[0]) S.voice = voices[0].name;
+  $("voiceWarn").classList.toggle("show", !voices.length && speechSynthesis.getVoices().length > 0);
+}
+if ("speechSynthesis" in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; setTimeout(loadVoices, 800); }
+
+function speak(text, rate){
+  return new Promise(res => {
+    if (!("speechSynthesis" in window)) return res(0);
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "tr-TR"; u.rate = rate || S.rate;
+    const v = voices.find(v => v.name === S.voice) || voices[0]; if (v) u.voice = v;
+    let t0 = 0, done = false;
+    const fin = () => { if (done) return; done = true; res(t0 ? (performance.now() - t0) / 1000 : 0); };
+    u.onstart = () => { t0 = performance.now(); };
+    u.onend = fin; u.onerror = fin;
+    // red de seguridad si el navegador no dispara onend
+    setTimeout(fin, 4000 + text.length * 180 / u.rate);
+    speechSynthesis.speak(u);
+  });
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- micrófono y reconocimiento ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) $("recWarn").classList.add("show");
+let stream = null, recorder = null, chunks = [], recog = null, recogDone = null;
+
+async function getMic(){
+  if (stream) return stream;
+  stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+  return stream;
+}
+async function startCapture(withRecog){
+  chunks = [];
+  try{
+    const s = await getMic();
+    recorder = new MediaRecorder(s);
+    recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+    recorder.start();
+  }catch(e){ status("No tengo acceso al micrófono. Permítelo en el candado de la barra de direcciones."); recorder = null; }
+  recogDone = null;
+  if (withRecog && SR){
+    recog = new SR(); recog.lang = "tr-TR"; recog.interimResults = true; recog.maxAlternatives = 5; recog.continuous = false;
+    let finals = [];
+    recogDone = new Promise(res => {
+      recog.onresult = e => {
+        const r = e.results[e.results.length - 1];
+        if (r.isFinal) finals = Array.from(r).map(a => a.transcript);
+        else status("Oigo: " + r[0].transcript);
+      };
+      recog.onerror = e => { if (e.error === "not-allowed") status("Permite el micrófono para puntuar."); };
+      recog.onend = () => res(finals);
+    });
+    try{ recog.start(); }catch(e){ recogDone = null; }
+  }
+}
+function stopCapture(){
+  return new Promise(res => {
+    if (recog){ try{ recog.stop(); }catch(e){} }
+    if (recorder && recorder.state !== "inactive"){
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, {type: recorder.mimeType || "audio/webm"});
+        setMine(URL.createObjectURL(blob)); res();
+      };
+      recorder.stop();
+    } else res();
+  });
+}
+function setMine(url){
+  if (S.recUrl) URL.revokeObjectURL(S.recUrl);
+  S.recUrl = url; $("bMine").disabled = !url;
+}
+
+// ---------- puntuación ----------
+const norm = s => s.toLocaleLowerCase("tr").replace(/[’'`]/g, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+function align(target, heard){
+  // LCS palabra a palabra; devuelve qué palabras del objetivo se oyeron
+  const n = target.length, m = heard.length, dp = Array.from({length:n+1}, () => new Array(m+1).fill(0));
+  for (let i = n-1; i >= 0; i--) for (let j = m-1; j >= 0; j--)
+    dp[i][j] = similar(target[i], heard[j]) ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const marks = new Array(n).fill(false); let i = 0, j = 0;
+  while (i < n && j < m){
+    if (similar(target[i], heard[j])) { marks[i] = true; i++; j++; }
+    else if (dp[i+1][j] >= dp[i][j+1]) i++; else j++;
+  }
+  return marks;
+}
+function similar(a, b){
+  if (a === b) return true;
+  const fold = s => s.replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ç/g,"c").replace(/ö/g,"o").replace(/ü/g,"u");
+  return fold(a) === fold(b);
+}
+function score(alts){
+  const tr = cur().s[S.idx][0], rawWords = tr.split(/\s+/);
+  const target = rawWords.map(w => norm(w).join(""));
+  let best = null;
+  alts.forEach(a => {
+    const marks = align(target, norm(a));
+    const pct = Math.round(100 * marks.filter(Boolean).length / target.length);
+    if (!best || pct > best.pct) best = {pct, marks, heard: a};
+  });
+  return best;
+}
+function showResult(r){
+  const box = $("result");
+  if (!r){ box.innerHTML = "No te he oído bien. Acércate al micrófono y vuelve a intentarlo."; box.className = "result show"; S.lastMarks = null; return null; }
+  const msg = r.pct >= 90 ? "Mükemmel! 🎉" : r.pct >= 70 ? "Çok iyi 👍" : r.pct >= 40 ? "Fena değil, otra vez" : "Escucha de nuevo y repite";
+  box.innerHTML = `<b>${r.pct}%</b> · ${msg}<div class="heard">Entendí: «${esc(r.heard)}»</div>`;
+  box.className = "result show";
+  S.lastMarks = r.marks; S.peek = true; renderSentence(r.marks); S.peek = false;
+  return r.pct;
+}
+
+// ---------- acciones ----------
+function setBusy(btn, label){
+  S.busy = !!btn;
+  ["bListen","bSlow","bShadow","bRepeat","bMine","bPrev","bNext"].forEach(id => { const b = $(id); if (b !== btn) b.disabled = !!btn || (id === "bMine" && !S.recUrl); });
+  document.querySelectorAll(".btn.live").forEach(b => b.classList.remove("live"));
+  if (btn){ btn.classList.add("live"); btn.dataset.label = btn.dataset.label || btn.innerHTML; btn.innerHTML = `<span class="ic">⏹</span>${label}`; }
+  else document.querySelectorAll("[data-label]").forEach(b => { b.innerHTML = b.dataset.label; delete b.dataset.label; });
+}
+async function listen(rate){
+  if (S.busy) return;
+  status(""); S.lastDur = await speak(cur().s[S.idx][0], rate) || S.lastDur;
+}
+let stopRequested = null;
+async function repeatMode(){
+  const b = $("bRepeat");
+  if (S.busy){ stopRequested && stopRequested(); return; }
+  setBusy(b, "Parar"); status("Habla ahora…"); $("result").className = "result";
+  await startCapture(true);
+  const manual = new Promise(r => stopRequested = r);
+  const limit = sleep(Math.max(5000, (S.lastDur || 3) * 2500));
+  await Promise.race([recogDone || manual, manual, limit]);
+  await stopCapture();
+  const alts = recogDone ? await Promise.race([recogDone, sleep(1500).then(() => [])]) : [];
+  stopRequested = null; setBusy(null); status("");
+  const pct = SR ? showResult(alts.length ? score(alts) : null) : null;
+  markPractice(pct);
+}
+async function shadowMode(){
+  const b = $("bShadow");
+  if (S.busy){ stopRequested && stopRequested(); speechSynthesis.cancel(); return; }
+  setBusy(b, "Parar"); status(S.phones ? "Habla a la vez que la voz…" : "Habla a la vez que la voz (sin auriculares no puntúo)");
+  $("result").className = "result";
+  await startCapture(S.phones);
+  const manual = new Promise(r => stopRequested = r);
+  await Promise.race([speak(cur().s[S.idx][0]).then(d => { if (d) S.lastDur = d; }), manual]);
+  await Promise.race([sleep(900), manual]);
+  await stopCapture();
+  const alts = recogDone ? await Promise.race([recogDone, sleep(1500).then(() => [])]) : [];
+  stopRequested = null; setBusy(null); status("Escucha tu grabación con «Mi voz».");
+  const pct = (S.phones && SR) ? showResult(alts.length ? score(alts) : null) : null;
+  markPractice(pct);
+}
+function playMine(){
+  if (!S.recUrl || S.busy) return;
+  const a = $("player"); a.src = S.recUrl; a.play();
+}
+async function loopMode(){
+  const b = $("bLoop");
+  if (S.loop){ S.loop = false; speechSynthesis.cancel(); return; }
+  S.loop = true; b.textContent = "⏹ Parar"; b.classList.add("live");
+  const tp = cur(), reps = +S.reps, factor = +S.pause;
+  try{
+    for (let i = S.idx; i < tp.s.length && S.loop; i++){
+      S.idx = i; save(); render();
+      for (let r = 0; r < reps && S.loop; r++){
+        status(`Escucha (${r+1}/${reps})`);
+        const d = await speak(tp.s[i][0]);
+        if (!S.loop) break;
+        status("Tu turno: repite en voz alta");
+        await sleep(((d || 2.5) * factor + 0.6) * 1000);
+      }
+      if (S.loop){ const p = S.progress[key(tp, i)] || {n:0, best:null}; p.n++; S.progress[key(tp, i)] = p; const t = todayStr(); S.days[t] = (S.days[t]||0) + 1; save(); renderTopics(); renderStats(); }
+    }
+  } finally {
+    S.loop = false; b.textContent = "🔁 Manos libres"; b.classList.remove("live"); status("");
+  }
+}
+function stopAll(){ S.loop = false; if (window.speechSynthesis) speechSynthesis.cancel(); stopRequested && stopRequested(); }
+function go(d){ if (S.busy) return; stopAll(); const n = cur().s.length; S.idx = (S.idx + d + n) % n; S.lastMarks = null; save(); render(); }
+
+$("bListen").onclick = () => listen();
+$("bSlow").onclick = () => listen(Math.max(0.5, S.rate - 0.3));
+$("bRepeat").onclick = repeatMode;
+$("bShadow").onclick = shadowMode;
+$("bMine").onclick = playMine;
+$("bPrev").onclick = () => go(-1);
+$("bNext").onclick = () => go(1);
+$("bLoop").onclick = loopMode;
+$("tr").onclick = () => { if (!S.hideTr) return; S.peek = !S.peek; renderSentence(S.lastMarks); };
+
+// ajustes
+$("rate").value = S.rate; $("rateVal").textContent = S.rate.toFixed(2) + "×";
+$("rate").oninput = e => { S.rate = +e.target.value; $("rateVal").textContent = S.rate.toFixed(2) + "×"; save(); };
+$("voice").onchange = e => { S.voice = e.target.value; save(); listen(); };
+$("reps").value = S.reps; $("reps").onchange = e => { S.reps = e.target.value; save(); };
+$("pause").value = S.pause; $("pause").onchange = e => { S.pause = e.target.value; save(); };
+[["hideTr","hideTr"],["hideEs","hideEs"],["phones","phones"]].forEach(([id, k]) => {
+  $(id).checked = S[k]; $(id).onchange = e => { S[k] = e.target.checked; S.peek = false; save(); renderSentence(S.lastMarks); };
+});
+
+// mis textos
+$("custom").value = (store.get("custom", []) || []).map(([t, e]) => e ? `${t}\n= ${e}` : t).join("\n");
+$("bSaveCustom").onclick = () => {
+  const out = [];
+  $("custom").value.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach(l => {
+    if (l.startsWith("=")) { if (out.length) out[out.length-1][1] = l.slice(1).trim(); return; }
+    (l.match(/[^.!?…]+[.!?…]*/g) || []).map(x => x.trim()).filter(Boolean).forEach(x => out.push([x, ""]));
+  });
+  if (!out.length) return status("Pega primero algún texto en turco.");
+  store.set("custom", out); S.topic = allTopics().length - 1; S.idx = 0; save(); render();
+  status(`Guardadas ${out.length} frases en «Mis textos».`); window.scrollTo({top:0, behavior:"smooth"});
+};
+$("bClearCustom").onclick = () => {
+  if (!confirm("¿Borrar todas tus frases?")) return;
+  store.set("custom", []); $("custom").value = ""; S.topic = 0; S.idx = 0; save(); render();
+};
+
+// teclado
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === " "){ e.preventDefault(); listen(); }
+  else if (k === "s") shadowMode();
+  else if (k === "r") repeatMode();
+  else if (k === "m") playMine();
+  else if (k === "t"){ $("hideTr").checked = S.hideTr = !S.hideTr; save(); renderSentence(S.lastMarks); }
+  else if (e.key === "ArrowRight") go(1);
+  else if (e.key === "ArrowLeft") go(-1);
+});
+
+render();
+if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
