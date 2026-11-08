@@ -39,11 +39,12 @@ h1{font-size:22px;margin:0;letter-spacing:-.01em}
 h1 small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
 .stats{display:flex;gap:8px;font-size:13px;color:var(--muted);flex-wrap:wrap;justify-content:flex-end}
 .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 10px;white-space:nowrap}
-.topics{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:thin}
-.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}
-.chip small{color:var(--muted);margin-left:6px}
-.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.chip.on small{color:inherit;opacity:.7}
+.topics{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.arrow{flex:0 0 auto;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer}
+.arrow:hover{border-color:var(--muted)}
+.tpbox{flex:1;min-width:0;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+.tpname{font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpinfo{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
 .meta{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
 .tr{font-size:clamp(22px,5.4vw,30px);line-height:1.35;font-weight:600;margin:6px 0 8px;cursor:pointer;transition:filter .2s;min-height:2.7em}
@@ -109,7 +110,11 @@ audio{display:none}
   <div class="warn" id="voiceWarn">No encuentro una voz turca en este navegador. Prueba con <b>Edge</b> o <b>Chrome</b> (o instala el paquete de voz turco en Windows: Configuración → Hora e idioma → Voz).</div>
   <div class="warn" id="recWarn">Este navegador no reconoce la voz, así que no habrá puntuación. Puedes grabarte y comparar igual. Para puntuar, usa Chrome o Edge.</div>
 
-  <nav class="topics" id="topics"></nav>
+  <nav class="topics" aria-label="Tema">
+    <button class="arrow" id="tpPrev" aria-label="Tema anterior">◀</button>
+    <div class="tpbox"><div class="tpname" id="tpName"></div><div class="tpinfo" id="tpInfo"></div></div>
+    <button class="arrow" id="tpNext" aria-label="Tema siguiente">▶</button>
+  </nav>
 
   <section class="card">
     <div class="meta"><span id="pos">1 / 8</span><span id="best"></span></div>
@@ -290,23 +295,19 @@ function myTopics(){
   if (c && c.length) { list.push({id:"custom", title:"Mis textos", es:"Tus frases", s:c}); store.set("mytopics", list); store.set("custom", []); }
   return list;
 }
-function allTopics(){ return TOPICS.concat(myTopics()); }
+// Los temas generados van primero (el más nuevo en primer lugar) y luego los temas fijos.
+function allTopics(){ return myTopics().slice().reverse().concat(TOPICS); }
+function goTopic(d){ if (S.busy) return; stopAll(); const n = allTopics().length; S.topic = (S.topic + d + n) % n; S.idx = 0; save(); render(); }
 function cur(){ const t = allTopics(); if (S.topic >= t.length) S.topic = 0; const tp = t[S.topic]; if (S.idx >= tp.s.length) S.idx = 0; return tp; }
 function key(tp, i){ return tp.id + ":" + tp.s[i][0]; }
 function todayStr(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
 // ---------- render ----------
 function renderTopics(){
-  const box = $("topics"); box.innerHTML = "";
-  allTopics().forEach((tp, i) => {
-    const done = tp.s.filter((_, j) => (S.progress[key(tp, j)]||{}).n).length;
-    const b = document.createElement("button");
-    b.className = "chip" + (i === S.topic ? " on" : "");
-    b.innerHTML = `${tp.title}<small>${done}/${tp.s.length}</small>`;
-    b.title = tp.es;
-    b.onclick = () => { stopAll(); S.topic = i; S.idx = 0; save(); render(); };
-    box.appendChild(b);
-  });
+  const all = allTopics(), tp = cur();
+  const done = tp.s.filter((_, j) => (S.progress[key(tp, j)]||{}).n).length;
+  $("tpName").textContent = tp.title;
+  $("tpInfo").textContent = `${tp.es ? tp.es + " · " : ""}${done}/${tp.s.length} · tema ${S.topic + 1} de ${all.length}`;
 }
 function renderSentence(marks){
   const tp = cur(), [tr, es] = tp.s[S.idx];
@@ -596,6 +597,8 @@ $("bMine").onclick = playMine;
 $("bPrev").onclick = () => go(-1);
 $("bNext").onclick = () => go(1);
 $("bLoop").onclick = loopMode;
+$("tpPrev").onclick = () => goTopic(-1);
+$("tpNext").onclick = () => goTopic(1);
 $("tr").onclick = () => { if (!S.hideTr) return; S.peek = !S.peek; renderSentence(S.lastMarks); };
 
 // ajustes
@@ -651,7 +654,8 @@ async function generate(){
     try{ data = parseAI(txt); }catch(e){ throw new Error("La IA devolvió algo raro. Pulsa otra vez «Generar frases»."); }
     const tp = {id: "g" + Date.now(), title: data.title || topic, es: data.es || topic, s: data.s};
     const list = myTopics(); list.push(tp); store.set("mytopics", list);
-    S.topic = allTopics().length - 1; S.idx = 0; save(); render(); renderMyTopics();
+    S.topic = 0; S.idx = 0; save(); render(); renderMyTopics();
+    window.scrollTo({top:0, behavior:"smooth"});
     $("topicIn").value = "";
     $("genStatus").textContent = `Listo: ${tp.s.length} frases en «${tp.title}». Ya están arriba para practicar.`;
   }catch(e){
